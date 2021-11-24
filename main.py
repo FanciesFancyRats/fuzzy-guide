@@ -8,12 +8,12 @@ from psycopg2.extras import RealDictCursor
 import time;
 from sqlalchemy.orm import Session
 from . import models
-#from .models import Base
-from .database import engine, Sessionlocal, Base
+from .models import Post
+from .database import engine, Sessionlocal 
 
 from starlette.status import HTTP_204_NO_CONTENT, HTTP_404_NOT_FOUND
 
-models.Base.metadata.create_all(bind=engine)
+models.Post.metadata.create_all(bind=engine)
 
 while True:
 
@@ -63,10 +63,19 @@ async def root():
     return({"message": "something else"})
 
 @app.get("/posts")
-def get_posts():
-    cursor.execute("""SELECT * FROM posts""")
-    posts = cursor.fetchall()
-    return {"data": posts}
+def get_posts(db: Session = Depends(get_db)):
+    posts = db.query(models.Post).all()
+    return {"data":posts}
+#    cursor.execute("""SELECT * FROM posts""")
+#    posts = cursor.fetchall()
+#    return {"data": posts}
+@app.get("/new_posts/{id}")
+def get_posts(id: int,db: Session = Depends(get_db)):
+    post = db.query(models.Post).get({"id":id})
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} was not found")
+    return {"data":post}
+
 
 @app.get("/posts/{id}")
 def get_post(id: int, resposne: Response):
@@ -76,6 +85,7 @@ def get_post(id: int, resposne: Response):
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"post with id: {id} was not found")
     return{"post_detail": post}
+
 
 
 @app.post("/posts", status_code=status.HTTP_201_CREATED)
@@ -108,4 +118,5 @@ def update_post(id: int, post: Post):
 
 @app.get("/sqlalchemy")
 def test_post(db: Session = Depends(get_db)):
-    return {"status":"success"}
+    posts = db.query(models.Post).all()
+    return {"data":posts}
